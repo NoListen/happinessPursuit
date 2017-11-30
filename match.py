@@ -16,7 +16,7 @@ controlling the paddle on the right
 
 
 # libraries
-import pong_L_R as pong
+import pong as pong
 import tensorflow as tf
 import cv2
 import numpy as np

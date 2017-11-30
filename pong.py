@@ -15,8 +15,6 @@ import random
 import math
 import rewards as rew
 
-
-
 # constants
 # size of the window
 WINDOW_WIDTH = 400
@@ -82,7 +80,7 @@ def updateBall(paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, bal
 
     # LEFT SIDE
     # checks for a collision with paddle1
-    # NOTE: have to keep <= in the first condition as the values do not exactly match due to constants
+    # NOTE: have to keep <= in the first condition as the values do not exactly match, due to constants
     
     if (ballXPos <= PADDLE_BUFFER + PADDLE_WIDTH and ballYPos + BALL_HEIGHT >= paddle1YPos and
         ballYPos <= paddle1YPos + PADDLE_HEIGHT):
@@ -93,7 +91,6 @@ def updateBall(paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, bal
         # compute and change the angle of reflection
         diff = (paddle1YPos + PADDLE_HEIGHT / 2) - (ballYPos + BALL_HEIGHT / 2)
         
-        # add a max on angle
         if diff != 0:
             ballAngle = math.radians(diff/35*80) # 35 is the assumed max difference between the center of paddle and ball - serves as a normalizing constant, 80 (from 0-90 degrees range) added arbitrarly to make the angles more acute
         else:
@@ -177,44 +174,45 @@ def updateBall(paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, bal
 
 
 
-# hand-coded AI for the opponent
-def updatePaddle1(paddle1YPos, ballYPos):
-    """ updates paddle position for the hand-coded AI """
+# inertia is not considered
+def updatePaddle1(action, paddle1YPos):
+    """ updates paddle position for the agent """
     
-    if (paddle1YPos + PADDLE_HEIGHT / 2 < ballYPos + BALL_HEIGHT / 2):
-        paddle1YPos = paddle1YPos + PADDLE_SPEED
-    # move up if ball is in lower half
-    if (paddle1YPos + PADDLE_HEIGHT / 2 > ballYPos + BALL_HEIGHT / 2):
+    # if move up
+    if (action[1] == 1):
         paddle1YPos = paddle1YPos - PADDLE_SPEED
-    # don't let it hit top
+    # if move down
+    if (action[2] == 1):
+        paddle1YPos = paddle1YPos + PADDLE_SPEED
+    # don't let it move off the screen
     if (paddle1YPos < 0):
         paddle1YPos = 0
-    # dont let it hit bottom
     if (paddle1YPos > WINDOW_HEIGHT - PADDLE_HEIGHT):
         paddle1YPos = WINDOW_HEIGHT - PADDLE_HEIGHT
     
     return paddle1YPos
 
 
-
-def updatePaddle2(action, paddle2YPos):
-    """ updates paddle position for the agent """
     
-    # if move up
-    if (action[1] == 1):
-        paddle2YPos = paddle2YPos - PADDLE_SPEED
-    # if move down
-    if (action[2] == 1):
+# hand-coded AI for the opponent
+def updatePaddle2(paddle2YPos, ballYPos):
+    """ updates paddle position for the hand-coded AI """
+    
+    if (paddle2YPos + PADDLE_HEIGHT / 2 < ballYPos + BALL_HEIGHT / 2):
         paddle2YPos = paddle2YPos + PADDLE_SPEED
-    # don't let it move off the screen
+    # move up if ball is in lower half
+    if (paddle2YPos + PADDLE_HEIGHT / 2 > ballYPos + BALL_HEIGHT / 2):
+        paddle2YPos = paddle2YPos - PADDLE_SPEED
+    # don't let it hit top
     if (paddle2YPos < 0):
         paddle2YPos = 0
+    # dont let it hit bottom
     if (paddle2YPos > WINDOW_HEIGHT - PADDLE_HEIGHT):
         paddle2YPos = WINDOW_HEIGHT - PADDLE_HEIGHT
     
     return paddle2YPos
 
-
+    
 
 def drawScore(score1, score2):
     """ draws score on screen """
@@ -226,7 +224,7 @@ def drawScore(score1, score2):
     screen.blit(scorelbl_2, (300 , 20))
 
 
-
+    
 # game class
 class PongGame:
     def __init__(self):
@@ -256,7 +254,28 @@ class PongGame:
         self.cumID2 = 0
         self.cumSE1 = 0
         self.cumSE2 = 0
-                
+
+    # unify the port
+    def updatePaddle(self, paddleYPos, action=None):
+        # auto control.
+        if action is not None:
+            if action[1] == 1:
+                paddleYPos = paddleYPos - PADDLE_SPEED
+            # if move down
+            if action[2] == 1:
+                paddleYPos = paddleYPos + PADDLE_SPEED
+        else:
+            if (paddleYPos + PADDLE_HEIGHT / 2 < self.ballYPos + BALL_HEIGHT / 2):
+                paddleYPos += PADDLE_SPEED
+            # move up if ball is in lower half
+            if (paddleYPos + PADDLE_HEIGHT / 2 > self.ballYPos + BALL_HEIGHT / 2):
+                paddleYPos -= PADDLE_SPEED
+
+        # don't let it move off the screen
+        paddleYPos = max(0, paddleYPos)
+        paddleYPos = min(paddleYPos, WINDOW_HEIGHT-PADDLE_HEIGHT)
+        return paddleYPos
+
     def getPresentFrame(self):
         # for each frame, calls the event queue, like if the main window needs to be repainted
         pygame.event.pump()
@@ -276,15 +295,16 @@ class PongGame:
         #return surface data
         return image_data
 
+    # set action to be a tuple
     def getNextFrame(self, action):
         pygame.event.pump()
         screen.fill(BLACK)
         
         # update position and draw paddle 1
-        self.paddle1YPos = updatePaddle1(self.paddle1YPos, self.ballYPos)
+        self.paddle1YPos = updatePaddle1(self.paddle1YPos, action[0])
         drawPaddle1(self.paddle1YPos)
         # update position and draw paddle 2
-        self.paddle2YPos = updatePaddle2(action, self.paddle2YPos)
+        self.paddle2YPos = updatePaddle2(self.paddle2YPos, action[1])
         drawPaddle2(self.paddle2YPos)
         # update ball position and score stats, draw ball and score
         [score1, score2, self.paddle1YPos, self.paddle2YPos, self.ballXPos, self.ballYPos, self.ballXDirection, self.ballAngle] = updateBall(self.paddle1YPos, self.paddle2YPos, self.ballXPos, self.ballYPos, self.ballXDirection, self.ballAngle)
@@ -329,8 +349,8 @@ class PongGame:
             self.cumID1 = 0
             self.cumID2 = 0
             self.cumSE1 = 0
-            self.cumSE2 = 0  
-        
+            self.cumSE2 = 0
+      
             return data
         
         else:

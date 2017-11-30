@@ -23,7 +23,7 @@ either pong_L or pong_R as pong
 
 
 # libraries
-import pong_L as pong # change to either pong_L or pong_R to correspond with the reward signal
+import pong as pong # change to either pong_L or pong_R to correspond with the reward signal
 import tensorflow as tf
 import cv2
 import numpy as np

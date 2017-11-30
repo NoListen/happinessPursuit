@@ -23,7 +23,7 @@ The following code is a modification of https://github.com/malreddysid/pong_RL
 
 
 # importing libraries
-import pong_L as pong # change to either pong_L or pong_R to correspond with the reward signal
+import pong as pong # change to either pong_L or pong_R to correspond with the reward signal
 import tensorflow as tf
 import cv2
 import numpy as np
@@ -84,7 +84,16 @@ def createGraph():
 
         return s, fc5
 
-        
+
+def getFrame(game):
+    frame = game.getPresentFrame()
+    frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
+    ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+
+def getNextFrame(game):
+    frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
+    ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+    frame = np.reshape(frame, (60, 60, 1))
 
 # load and train DQN on pixel data
 def trainGraph(inp, out):
@@ -99,6 +108,7 @@ def trainGraph(inp, out):
     # action
     action = tf.reduce_sum(tf.multiply(out, argmax), reduction_indices = 1)
     # cost function which we will reduce through backpropagation
+    # what's the action ???
     cost = tf.reduce_mean(tf.square(action - gt))
     # optimization function to minimize our cost function 
     train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
