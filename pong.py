@@ -250,10 +250,6 @@ class PongGame:
         self.tally1 = 0
         self.tally2 = 0
         # initialize variable for cumulative rewards for both players
-        self.cumID1 = 0
-        self.cumID2 = 0
-        self.cumSE1 = 0
-        self.cumSE2 = 0
 
     # unify the port
     def updatePaddle(self, paddleYPos, action=None):
@@ -277,6 +273,7 @@ class PongGame:
         return paddleYPos
 
     def getPresentFrame(self):
+        self.reset()
         # for each frame, calls the event queue, like if the main window needs to be repainted
         pygame.event.pump()
         # make the background black
@@ -295,11 +292,18 @@ class PongGame:
         #return surface data
         return image_data
 
+    def measure_end(self):
+        return self.tally1 == 11.0 or self.tally2 == 11.0
+
+    def reset(self):
+        self.tally1 = 0
+        self.tally2 = 0
+
     # set action to be a tuple
-    def getNextFrame(self, action):
+    def getNextFrame(self, action, reward_type="ID"):
         pygame.event.pump()
         screen.fill(BLACK)
-        
+
         # update position and draw paddle 1
         self.paddle1YPos = self.updatePaddle(self.paddle1YPos, action[0])
         drawPaddle1(self.paddle1YPos)
@@ -317,42 +321,17 @@ class PongGame:
         self.tally2 = self.tally2 + score2
 
         drawScore(self.tally1, self.tally2)
-        
-        # compute the rewards
-        # ID
-        rewardID_player1, rewardID_player2 = rew.rewardID(score1, score2)
-        
-        self.cumID1 = self.cumID1 + rewardID_player1
-        self.cumID2 = self.cumID2 + rewardID_player2
-        
-        # SUPEREGO
-        rewardSE_player1 = rew.rewardSE_L(score1, score2, self.tally1, self.tally2)
-        rewardSE_player2 = rew.rewardSE_R(score1, score2, self.tally1, self.tally2)
-        self.cumSE1 = self.cumSE1 + rewardSE_player1
-        self.cumSE2 = self.cumSE2 + rewardSE_player2
-        
+
+        if reward_type == "ID":
+            reward1, reward2 = rew.rewardID(score1, score2)
+        else:
+            # SUPEREGO
+            reward1, reward2 = rew.rewardSE(score1, score2, self.tally1, self.tally2)
+
         # get the surface data
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         # update the window
-        pygame.display.flip()
-                
-        # increase score until 11 points reached
-        # return the score, rewards and surface data
-        
-        if self.tally1 == 11 or self.tally2 == 11:
-            data = [score1, score2, self.tally1, self.tally2, rewardID_player1, rewardID_player2, self.cumID1, self.cumID2, \
-            rewardSE_player1, rewardSE_player2, self.cumSE1, self.cumSE2, image_data]
-            
-            self.tally1 = 0
-            self.tally2 = 0
-            # restart the cumulative reward variables
-            self.cumID1 = 0
-            self.cumID2 = 0
-            self.cumSE1 = 0
-            self.cumSE2 = 0
-      
-            return data
-        
-        else:
-            return [score1, score2, self.tally1, self.tally2, rewardID_player1, rewardID_player2, self.cumID1, self.cumID2, \
-                rewardSE_player1, rewardSE_player2, self.cumSE1, self.cumSE2, image_data]
+        # pygame.display.flip()
+
+        data = [score1, score2, self.tally1, self.tally2, reward1, reward2, image_data]
+        return data
