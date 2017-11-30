@@ -11,7 +11,7 @@ paddle on the left or right
 """
 
 
-
+# zero sum game.
 def rewardID(score1, score2):
     """ computes ID reward, +1 if player scores a point, -1 otherwise """
     

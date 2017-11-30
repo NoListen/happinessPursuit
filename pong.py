@@ -224,7 +224,7 @@ def drawScore(score1, score2):
     screen.blit(scorelbl_2, (300 , 20))
 
 
-    
+# include the data processing in the enviroment
 # game class
 class PongGame:
     def __init__(self):
@@ -301,10 +301,10 @@ class PongGame:
         screen.fill(BLACK)
         
         # update position and draw paddle 1
-        self.paddle1YPos = updatePaddle1(self.paddle1YPos, action[0])
+        self.paddle1YPos = self.updatePaddle(self.paddle1YPos, action[0])
         drawPaddle1(self.paddle1YPos)
         # update position and draw paddle 2
-        self.paddle2YPos = updatePaddle2(self.paddle2YPos, action[1])
+        self.paddle2YPos = self.updatePaddle(self.paddle2YPos, action[1])
         drawPaddle2(self.paddle2YPos)
         # update ball position and score stats, draw ball and score
         [score1, score2, self.paddle1YPos, self.paddle2YPos, self.ballXPos, self.ballYPos, self.ballXDirection, self.ballAngle] = updateBall(self.paddle1YPos, self.paddle2YPos, self.ballXPos, self.ballYPos, self.ballXDirection, self.ballAngle)

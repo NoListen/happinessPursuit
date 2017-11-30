@@ -32,7 +32,6 @@ import os
 from collections import deque
 
 
-
 # constants
 REWARD = 'rewardID_player1' # change according to which agent you want to train
 ACTIONS = 3 # up, down, don't move
@@ -50,7 +49,7 @@ BATCH = 100 # batch size
 
 # create a tensorflow graph
 def createGraph():
-     with tf.device('/gpu:0'):
+     with tf.device('/cpu:0'):
         W_conv1 = tf.Variable(tf.truncated_normal([6, 6, 4, 32], stddev=0.02))
         b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]))
 
@@ -85,21 +84,25 @@ def createGraph():
         return s, fc5
 
 
-def getFrame(game):
-    frame = game.getPresentFrame()
-    frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
-    ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
-
-def getNextFrame(game):
-    frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
-    ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
-    frame = np.reshape(frame, (60, 60, 1))
+# def getFrame(game):
+#     frame = game.getPresentFrame()
+#     frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
+#     ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+#
+# def getNextFrame(game):
+#     frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
+#     ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+#     frame = np.reshape(frame, (60, 60, 1))
 
 # load and train DQN on pixel data
 def trainGraph(inp, out):
+    import time
+    image_path = "image"
+    if not os.path.exists(image_path):
+        os.mkdir(image_path)
+    train_steps = 0
 
     # preparation stage - game, frames, saver and checkpoints management
-
     # to calculate the argmax, we multiply the predicted output with a vector with one value 1 and rest as 0
     argmax = tf.placeholder("float", [None, ACTIONS]) 
     gt = tf.placeholder("float", [None]) # ground truth
@@ -125,6 +128,7 @@ def trainGraph(inp, out):
     frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
     # binary colors, black or white
     ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+
     # stack frames, create the input tensor
     inp_t = np.stack((frame, frame, frame, frame), axis = 2)
 
@@ -146,7 +150,7 @@ def trainGraph(inp, out):
     c= 0
     
     epsilon = INITIAL_EPSILON
-    
+    start_time = time.time()
     # training DQN and exporting stats
     while(1):
         # output tensor
@@ -166,7 +170,7 @@ def trainGraph(inp, out):
 
         #reward tensor
         score1, score2, cumScore1, cumScore2, rewardID_player1, rewardID_player2, cumID1, cumID2, \
-        rewardSE_player1, rewardSE_player2, cumSE1, cumSE2, frame = game.getNextFrame(argmax_t)
+        rewardSE_player1, rewardSE_player2, cumSE1, cumSE2, frame = game.getNextFrame((argmax_t, None))
         
         # reward of the agent that we are training        
         if REWARD == 'rewardID_player1':
@@ -180,8 +184,20 @@ def trainGraph(inp, out):
                 
         # get frame pixel data
         frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
+
+        # === check about the progress ===
+        # cv2.imwrite(image_path + "/binary%i.png" % train_steps, frame)
+        train_steps += 1
+        if (train_steps+1) % 1000 == 0:
+            print("Average frames per second: %f" % (train_steps/(time.time()- start_time)))
+        # ================================
+
         ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+
+
         frame = np.reshape(frame, (60, 60, 1))
+
+
         # new input tensor
         inp_t1 = np.append(frame, inp_t[:, :, 0:3], axis = 2)
         
@@ -236,7 +252,7 @@ def trainGraph(inp, out):
                 + ' cumSE1 ' + str(cumSE1) + ' cumSE2 ' + str(cumSE2) + '\n'
                 log.write(scoreline)
             
-        print("TIMESTEP", t, "/ EPSILON", epsilon, "/ ACTION", maxIndex, "/ REWARD", reward_t, "/ Q_MAX %e" % np.max(out_t))
+        # print("TIMESTEP", t, "/ EPSILON", epsilon, "/ ACTION", maxIndex, "/ REWARD", reward_t, "/ Q_MAX %e" % np.max(out_t))
 
 
 
