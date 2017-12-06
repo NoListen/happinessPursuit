@@ -78,33 +78,16 @@ def createGraph():
         conv3_flat = tf.reshape(conv3, [-1, 1024])
 
         fc4 = tf.nn.relu(tf.matmul(conv3_flat, W_fc4) + b_fc4)
-        
+
         fc5 = tf.matmul(fc4, W_fc5) + b_fc5
 
         return s, fc5
 
-
-# def getFrame(game):
-#     frame = game.getPresentFrame()
-#     frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
-#     ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
-#
-# def getNextFrame(game):
-#     frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
-#     ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
-#     frame = np.reshape(frame, (60, 60, 1))
-
 # load and train DQN on pixel data
 def trainGraph(inp, out):
-    import time
-    image_path = "image"
-    if not os.path.exists(image_path):
-        os.mkdir(image_path)
-    train_steps = 0
-
     # preparation stage - game, frames, saver and checkpoints management
     # to calculate the argmax, we multiply the predicted output with a vector with one value 1 and rest as 0
-    argmax = tf.placeholder("float", [None, ACTIONS]) 
+    argmax = tf.placeholder("float", [None, ACTIONS])
     gt = tf.placeholder("float", [None]) # ground truth
     global_step = tf.Variable(0, name='global_step')
 
@@ -113,45 +96,43 @@ def trainGraph(inp, out):
     # cost function which we will reduce through backpropagation
     # what's the action ???
     cost = tf.reduce_mean(tf.square(action - gt))
-    # optimization function to minimize our cost function 
+    # optimization function to minimize our cost function
     train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
     # initialize the game
     game = pong.PongGame()
-    
+
     # create a queue for experience replay to store policies
     D = deque()
 
     # get intial frame
     frame = game.getPresentFrame()
-    # convert rgb to gray scale for processing
-    frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
-    # binary colors, black or white
-    ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
 
     # stack frames, create the input tensor
     inp_t = np.stack((frame, frame, frame, frame), axis = 2)
 
     # saver and checkpoints management
-    saver = tf.train.Saver(tf.global_variables(), max_to_keep = 0)    
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep = 0)
     sess = tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=True))
-    
+
     checkpoint = tf.train.latest_checkpoint('./checkpoints')
     if checkpoint != None:
-        print('Restore Checkpoint %s'%(checkpoint))      
+        print('Restore Checkpoint %s'%(checkpoint))
         saver.restore(sess, checkpoint)
-        print("Model restored.")   
+        print("Model restored.")
     else:
         init = tf.global_variables_initializer()
         sess.run(init)
         print("Initialized new Graph")
 
-    t = global_step.eval()   
+    t = global_step.eval()
     c= 0
-    
+
     epsilon = INITIAL_EPSILON
-    start_time = time.time()
+
+    train_side = 0
     # training DQN and exporting stats
+
     while(1):
         # output tensor
         out_t = out.eval(feed_dict = {inp : [inp_t]})[0]
@@ -164,95 +145,79 @@ def trainGraph(inp, out):
         else:
             maxIndex = np.argmax(out_t)
         argmax_t[maxIndex] = 1
-        
+
         if epsilon > FINAL_EPSILON:
             epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
 
-        #reward tensor
-        score1, score2, cumScore1, cumScore2, rewardID_player1, rewardID_player2, cumID1, cumID2, \
-        rewardSE_player1, rewardSE_player2, cumSE1, cumSE2, frame = game.getNextFrame((argmax_t, None))
-        
-        # reward of the agent that we are training        
-        if REWARD == 'rewardID_player1':
-            reward_t = rewardID_player1
-        if REWARD == 'rewardID_player2':
-            reward_t = rewardID_player2
-        if REWARD == 'rewardSE_player1':
-            reward_t = rewardSE_player1
-        if REWARD == 'rewardSE_player2':
-            reward_t = rewardSE_player2
-                
-        # get frame pixel data
-        frame = cv2.cvtColor(cv2.resize(frame, (60, 60)), cv2.COLOR_BGR2GRAY)
 
-        # === check about the progress ===
-        # cv2.imwrite(image_path + "/binary%i.png" % train_steps, frame)
-        train_steps += 1
-        if (train_steps+1) % 1000 == 0:
-            print("Average frames per second: %f" % (train_steps/(time.time()- start_time)))
-        # ================================
+        if train_side == 1:
+            action_tuple = (None, argmax_t)
+        else:
+            action_tuple = (argmax_t, None)
 
-        ret, frame = cv2.threshold(frame, 1, 255, cv2.THRESH_BINARY)
+        # My first goal is to run one agent that can beat the opponent both sides
 
+        frame, rewards, done, cumScores = game.getNextFrame(action_tuple)
+
+        reward_t = rewards[train_side]
+
+        # flip the image data to remian the same view as the left side
+        if train_side == 1:
+            frame = frame[::-1, :]
+
+        cv2.imwrite("imgs/%i_train_side.png" % t, frame)
 
         frame = np.reshape(frame, (60, 60, 1))
-
-
-        # new input tensor
         inp_t1 = np.append(frame, inp_t[:, :, 0:3], axis = 2)
-        
-        # add our input tensor, argmax tensor, reward and updated input tensor to memory
         D.append((inp_t, argmax_t, reward_t, inp_t1))
 
-        # only store the specified size of memory
+        # alter the training side.
+
         if len(D) > REPLAY_MEMORY:
             D.popleft()
-        
-        # training iteration
+
         if c > OBSERVE and not USE_MODEL:
 
             # get values from replay memory
             minibatch = random.sample(D, BATCH)
-        
+
             inp_batch = [d[0] for d in minibatch]
             argmax_batch = [d[1] for d in minibatch]
             reward_batch = [d[2] for d in minibatch]
             inp_t1_batch = [d[3] for d in minibatch]
-        
+
             gt_batch = []
             out_batch = out.eval(feed_dict = {inp : inp_t1_batch})
-            
+
             # add values to our batch
             for i in range(0, len(minibatch)):
                 gt_batch.append(reward_batch[i] + GAMMA * np.max(out_batch[i]))
 
-            # train on that 
+            # train on that
             train_step.run(feed_dict = {
                            gt : gt_batch,
                            argmax : argmax_batch,
                            inp : inp_batch
                            })
-        
+
         # update our input tensor the the next frame
         inp_t = inp_t1
-        t = t + 1   
-        c = c + 1     
+        t = t + 1
+        c = c + 1
 
-        # save checkpoints
+        # save checkints
         if t % SAVE_STEP == 0 and not USE_MODEL:
-            sess.run(global_step.assign(t))            
+            sess.run(global_step.assign(t))
             saver.save(sess, './checkpoints/' + 'model.ckpt', global_step=t)
 
         # save stats log
-        if score1 == 1 or score2 == 1:
+        if done:
             with open('stats_test.txt', 'a') as log:
-                scoreline = 'TIMESTEP ' + str(t) + ' cumScore1 ' + str(cumScore1) + ' cumScore2 ' + str(cumScore2) \
-                + ' ID1 ' + str(rewardID_player1) + ' ID2 ' + str(rewardID_player2) + ' cumID1 ' + str(cumID1) \
-                + ' cumID2 ' + str(cumID2) + ' SE1 ' + str(rewardSE_player1) + ' SE2 ' + str(rewardSE_player2) \
-                + ' cumSE1 ' + str(cumSE1) + ' cumSE2 ' + str(cumSE2) + '\n'
+                scoreline = 'TIMESTEP ' + str(t) + ' cumScore1 ' + str(cumScores[train_side]) + \
+                            ' cumScore2 ' + str(cumScores[1-train_side]) + '\n'
+                print(scoreline)
                 log.write(scoreline)
-            
-        # print("TIMESTEP", t, "/ EPSILON", epsilon, "/ ACTION", maxIndex, "/ REWARD", reward_t, "/ Q_MAX %e" % np.max(out_t))
+            train_side = 1 - train_side
 
 
 
@@ -264,6 +229,6 @@ def main():
     trainGraph(inp, out)
 
 
-    
+
 if __name__ == "__main__":
     main()
