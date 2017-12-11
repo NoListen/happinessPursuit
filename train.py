@@ -100,11 +100,11 @@ def trainGraph(inp, out):
     train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
     # initialize the game
-    game = pong.PongGame()
+    game = pong.PongGame(0)
 
     # create a queue for experience replay to store policies
-    D = deque()
-
+    DL = deque()
+    DR = deque()
     # get intial frame
     frame = game.getPresentFrame()
 
@@ -113,7 +113,10 @@ def trainGraph(inp, out):
 
     # saver and checkpoints management
     saver = tf.train.Saver(tf.global_variables(), max_to_keep = 0)
-    sess = tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=True))
+    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    config.gpu_options.allow_growth=True
+    sess = tf.InteractiveSession(config=config)
+    #sess = tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=True))
 
     checkpoint = tf.train.latest_checkpoint('./checkpoints')
     if checkpoint != None:
@@ -165,22 +168,25 @@ def trainGraph(inp, out):
         if train_side == 1:
             frame = frame[::-1, :]
 
-        cv2.imwrite("imgs/%i_train_side.png" % t, frame)
+        #cv2.imwrite("imgs/%i_train_side.png" % t, frame)
 
         frame = np.reshape(frame, (60, 60, 1))
         inp_t1 = np.append(frame, inp_t[:, :, 0:3], axis = 2)
-        D.append((inp_t, argmax_t, reward_t, inp_t1))
-
-        # alter the training side.
-
-        if len(D) > REPLAY_MEMORY:
-            D.popleft()
+        if train_side == 1:
+		DR.append((inp_t, argmax_t, reward_t, inp_t1))
+        	if len(DR) > REPLAY_MEMORY:
+            		DR.popleft()
+	else:
+		DL.append((inp_t, argmax_t, reward_t, inp_t1))
+	        if len(DL) > REPLAY_MEMORY:
+        	    DL.popleft()
 
         if c > OBSERVE and not USE_MODEL:
-
-            # get values from replay memory
-            minibatch = random.sample(D, BATCH)
-
+	    if train_side == 1:
+            	# get values from replay memory
+            	minibatch = random.sample(DR, BATCH)
+	    else:
+            	minibatch = random.sample(DL, BATCH)
             inp_batch = [d[0] for d in minibatch]
             argmax_batch = [d[1] for d in minibatch]
             reward_batch = [d[2] for d in minibatch]
@@ -213,9 +219,8 @@ def trainGraph(inp, out):
         # save stats log
         if done:
             with open('stats_test.txt', 'a') as log:
-                scoreline = 'TIMESTEP ' + str(t) + ' cumScore1 ' + str(cumScores[train_side]) + \
-                            ' cumScore2 ' + str(cumScores[1-train_side]) + '\n'
-                print(scoreline)
+                scoreline = 'TIMESTEP ' + str(t) + ' cumScore1 ' + str(cumScores[train_side])+' cumScore2 ' + str(cumScores[1-train_side])+' train side '+str(train_side)+'\n'
+                print(scoreline.strip())
                 log.write(scoreline)
             train_side = 1 - train_side
 
