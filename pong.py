@@ -228,8 +228,8 @@ def drawScore(score1, score2):
     font = pygame.font.Font(None, 32)
     scorelbl_1 = font.render(str(score1), 1, WHITE)
     scorelbl_2 = font.render(str(score2), 1, WHITE)
-    screen.blit(scorelbl_1, (100 , 20))
-    screen.blit(scorelbl_2, (300 , 20))
+    screen.blit(scorelbl_1, (100 - font.size(str(score1))[0]/2,  20))
+    screen.blit(scorelbl_2, (300 - font.size(str(score2))[0]/2 , 20))
 
 
 # include the data processing in the enviroment
