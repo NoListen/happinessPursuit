@@ -118,8 +118,10 @@ def updateBall(paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, bal
             ballXDirection = 1
         if(num == 1):
             ballXDirection = -1
-
+        
         ballAngle = math.radians(70)
+        if random.randint(0,1) == 0:
+            ballAngle = -ballAngle
 
         return [score1, score2, paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, ballAngle]
 
@@ -160,6 +162,8 @@ def updateBall(paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, bal
             ballXDirection = -1
 
         ballAngle = math.radians(70)
+        if random.randint(0,1) == 0:
+            ballAngle = -ballAngle
 
         return [score1, score2, paddle1YPos, paddle2YPos, ballXPos, ballYPos, ballXDirection, ballAngle]
 

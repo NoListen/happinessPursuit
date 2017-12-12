@@ -49,7 +49,7 @@ BATCH = 100 # batch size
 
 # create a tensorflow graph
 def createGraph():
-     with tf.device('/cpu:0'):
+     with tf.device('/gpu:0'):
         W_conv1 = tf.Variable(tf.truncated_normal([6, 6, 4, 32], stddev=0.02))
         b_conv1 = tf.Variable(tf.constant(0.01, shape=[32]))
 
@@ -104,7 +104,7 @@ def trainGraph(inp, out):
 
     # create a queue for experience replay to store policies
     DL = deque()
-    DR = deque()
+    #DR = deque()
     # get intial frame
     frame = game.getPresentFrame()
 
@@ -172,21 +172,20 @@ def trainGraph(inp, out):
 
         frame = np.reshape(frame, (60, 60, 1))
         inp_t1 = np.append(frame, inp_t[:, :, 0:3], axis = 2)
-        if train_side == 1:
-		DR.append((inp_t, argmax_t, reward_t, inp_t1))
-        	if len(DR) > REPLAY_MEMORY:
-            		DR.popleft()
-	else:
-		DL.append((inp_t, argmax_t, reward_t, inp_t1))
-	        if len(DL) > REPLAY_MEMORY:
-        	    DL.popleft()
+        #if train_side == 1:
+        #        DR.append((inp_t, argmax_t, reward_t, inp_t1))
+        #        if len(DR) > REPLAY_MEMORY:
+        #            DR.popleft()
+        #else:
+        DL.append((inp_t, argmax_t, reward_t, inp_t1))
+        if len(DL) > REPLAY_MEMORY:
+            DL.popleft()
 
         if c > OBSERVE and not USE_MODEL:
-	    if train_side == 1:
-            	# get values from replay memory
-            	minibatch = random.sample(DR, BATCH)
-	    else:
-            	minibatch = random.sample(DL, BATCH)
+            #if train_side == 1:
+            #    minibatch = random.sample(DR, BATCH)
+            #else:
+            minibatch = random.sample(DL, BATCH)
             inp_batch = [d[0] for d in minibatch]
             argmax_batch = [d[1] for d in minibatch]
             reward_batch = [d[2] for d in minibatch]
