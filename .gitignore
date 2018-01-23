@@ -1,3 +1,5 @@
 checkpoints/
 stats_test*.txt
 __pycache__/
+.idea
+

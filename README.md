@@ -1,3 +1,11 @@
+# Modification
+The code simplify the pong enviroment a lot and fix the asymmetry of score. 
+
+The agents can play in both sides. The tuple action to the enviroment consists of up, down, idle or None. None means rule-based action. You can flip the image when the agent is playing in the right side so that it looks like playing in the left side. At the end, you can get one agent that can play well in both sides.
+
+The DQN used in original work is not appreciated and needs further improvement.
+
+
 # Happiness Pursuit
 Code accompanying the paper "Happiness Pursuit: Personality Learning in a Society of Agents". TODO: add link to paper.
 
